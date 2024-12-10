@@ -1,3 +1,4 @@
+![Demo output](assets/rekt.gif)
 ### Dependencies:
-    * [GLFW3](https://github.com/glfw/glfw) for Window Management
-    * [Glad](https://github.com/Dav1dde/glad) for OpenGL Extension Loading
+    * [GLFW3](https://github.com/glfw/glfw/) for Window Management
+    * [Glad](https://github.com/Dav1dde/glad/) for OpenGL Extension Loading
