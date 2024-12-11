@@ -27,11 +27,13 @@ typedef struct {
 extern void CreateWindow(const int width, const int height, const char *title);
 extern unsigned int CreateShaderProgram(const char *vertex_glsl,
                                         const char *fragment_glsl);
-extern bool KeepCooking();
+extern bool StartCooking();
 extern void EndCooking(); // batch renderer
-void DoneCooking();       // close all
+void CloseWindow();       // close all
 
 // Funtionalities can be added here
 void DrawRectangle(const Vec2 position, const int width, const int height,
                    const Color color);
+
+void DrawLine(const Vec2 start, const Vec2 end, const Color color, const int thickness);
 #endif
