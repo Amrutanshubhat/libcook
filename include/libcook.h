@@ -23,7 +23,7 @@ typedef struct {
   short b;
   short a;
 } Color;
-
+extern unsigned int *const window_width, *const window_height;
 extern void CreateWindow(const int width, const int height, const char *title);
 extern unsigned int CreateShaderProgram(const char *vertex_glsl,
                                         const char *fragment_glsl);
@@ -32,8 +32,6 @@ extern void EndCooking(); // batch renderer
 void CloseWindow();       // close all
 
 // Funtionalities can be added here
-void DrawRectangle(const Vec2 position, const int width, const int height,
-                   const Color color);
-
-void DrawLine(const Vec2 start, const Vec2 end, const Color color, const int thickness);
+void DrawRectangle(const Vec2 position, const Vec2 dimension, const Color color);
+void DrawLine(const Vec2 start, const Vec2 end, const Color color);
 #endif
