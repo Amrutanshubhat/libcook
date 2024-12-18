@@ -10,12 +10,17 @@ main			:= main.o
 
 cflags			= clang -D_GNU_SOURCE -std=c2x -Wall -O0 -g
 includes 		= -I$(glfw_path)/include -I$(glad_path) -Iinclude
-rpath			= -Wl,-rpath=$(glfw_dl_path)
-linkers			= -L$(glfw_dl_path) $(rpath) -lglfw -lm
+rpath			= -Wl, -rpath $(glfw_dl_path)
+linkers			= $(rpath) -L$(glfw_dl_path) -lglfw3 -lm
 target			= out
 
 find_obj_files 	= $(wildcard $(dir)/*.o)
 obj_files		= $(foreach dir, $(project_dir), $(find_obj_files))
+platform_os		= $(shell uname)
+
+ifeq ($(platform_os), Darwin)
+	linkers	+= -framework CoreVideo -framework OpenGL -framework IOKit -framework Cocoa -framework Carbon
+endif
 
 .PHONY		: clean
 
