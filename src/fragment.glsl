@@ -11,4 +11,4 @@ out vec4 colorout;
 
 void main() {
 	colorout = cust_color;
-};
+}

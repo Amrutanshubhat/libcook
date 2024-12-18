@@ -16,4 +16,4 @@ void main() {
    gl_Position = vec4(pos, 1.0);
    //cust_color = color_matrix*vcolor;
    cust_color = vcolor;
-};
+}
