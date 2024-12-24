@@ -6,6 +6,7 @@ glad_path		= $(HOME)/packages
 project_dir 	= src examples .
 src_files		= src/impl_libcook.o
 rekt			= examples/rekt.o
+line			= examples/line.o
 main			:= main.o
 
 cflags			= clang -D_GNU_SOURCE -std=c2x -Wall -O0 -g
@@ -28,6 +29,9 @@ exp			: $(main)
 			$(MAKE) run
 
 rekt		: $(rekt)
+			$(MAKE) run
+
+line		: $(line)
 			$(MAKE) run
 
 run			:  $(target)
