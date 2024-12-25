@@ -8,11 +8,11 @@ int main(void) {
 	unsigned int indices[] = {0, 1, 2, 2, 3, 1};
 	/*
 	 	0 _______________ 2
-		  |				|
+		  |		|
 		  |             |
 		  |             |
-		  |	            |	
-        1 |_____________| 3
+		  |	        |	
+         	1 |_____________| 3
 	*/
 	CreateWindow(width, height, "WindoW");
 	while (StartCooking())
