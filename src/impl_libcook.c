@@ -272,7 +272,7 @@ void DrawLine(const Vec2 start, const Vec2 end, const Color col) {
 
 void DrawVertices(const Vec3 *positions, const Color *colors, const int size,
                   const unsigned int *indices, const int isize) {
-  // TODO: Implementation
+	append_vert_ind(positions, colors, size, indices, isize, TRIANGLE_MODE);
 }
 
 inline void EndCooking() {

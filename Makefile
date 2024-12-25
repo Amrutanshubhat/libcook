@@ -7,6 +7,7 @@ project_dir 	= src examples .
 src_files		= src/impl_libcook.o
 rekt			= examples/rekt.o
 line			= examples/line.o
+vertices		= examples/vertices.o
 main			:= main.o
 
 cflags			= clang -D_GNU_SOURCE -std=c2x -Wall -O0 -g
@@ -32,6 +33,9 @@ rekt		: $(rekt)
 			$(MAKE) run
 
 line		: $(line)
+			$(MAKE) run
+
+vertices	: $(vertices)
 			$(MAKE) run
 
 run			:  $(target)
