@@ -30,6 +30,8 @@ static struct {
   GLFWwindow *handle;
 } _window;
 
+const int _color_bit = (1<<8)-1;
+
 unsigned int *const window_width = &_window.width;
 unsigned int *const window_height = &_window.height;
 
@@ -75,15 +77,13 @@ static void append_vert_ind(const Vec3 *positions, const Color *colors,
     assert(handle->vertices, "Vertex realloc failed\nDownload more RAM\n");
   }
   for (size_t i = 0; i < size; i++) {
-    handle->vertices[handle->vert_cnt].position[0] =
-        (2.0 * positions[i].x / _window.width) - 1;
-    handle->vertices[handle->vert_cnt].position[1] =
-        (-2.0 * positions[i].y / _window.height) + 1;
+    handle->vertices[handle->vert_cnt].position[0] = positions[i].x;
+    handle->vertices[handle->vert_cnt].position[1] = positions[i].y;
     handle->vertices[handle->vert_cnt].position[2] = positions[i].z;
-    handle->vertices[handle->vert_cnt].color[0] = (float)colors[i].r / 255;
-    handle->vertices[handle->vert_cnt].color[1] = (float)colors[i].g / 255;
-    handle->vertices[handle->vert_cnt].color[2] = (float)colors[i].b / 255;
-    handle->vertices[handle->vert_cnt].color[3] = (float)colors[i].a / 255;
+    handle->vertices[handle->vert_cnt].color[0] = colors[i].r;
+    handle->vertices[handle->vert_cnt].color[1] = colors[i].g;
+    handle->vertices[handle->vert_cnt].color[2] = colors[i].b;
+    handle->vertices[handle->vert_cnt].color[3] = colors[i].a;
     handle->vert_cnt++;
   }
 
@@ -223,6 +223,28 @@ void CreateWindow(const int width, const int height, const char *title) {
 
   _window.width = width;
   _window.height = height;
+
+  //initialize uniform variables
+  float pos_mat[] = {
+	  2.0f/width, 0, 0, -1,
+	  0, -2.0f/height, 0, 1,
+	  0, 0, 1, 0,
+	  0, 0, 0, 1
+  };
+
+  float clr_mat[] = {
+	1.0f/_color_bit, 0, 0, 0,
+	0, 1.0f/_color_bit, 0, 0,
+	0, 0, 1.0f/_color_bit, 0,
+	0, 0, 0, 1.0f/_color_bit
+  };
+
+  int proj_mat_pos = glGetUniformLocation(_gl.shader_program, "proj_pos_matrix");
+  int proj_mat_clr = glGetUniformLocation(_gl.shader_program, "proj_clr_matrix");
+  glUseProgram(_gl.shader_program);
+  glUniformMatrix4fv(proj_mat_pos, 1, GL_TRUE, pos_mat);
+  glUniformMatrix4fv(proj_mat_clr, 1, GL_TRUE, clr_mat);
+  glUseProgram(0);
 }
 
 unsigned int CreateShaderProgram(const char *const vertex_glsl,
