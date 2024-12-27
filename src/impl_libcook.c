@@ -10,13 +10,6 @@
 #include "GLFW/glfw3.h"
 #include "libcook.h"
 
-// Macro Magic
-#define assert(value, ...)                                                     \
-  if (!(value)) {                                                              \
-    fprintf(stderr, "[ERROR]: " __VA_ARGS__);                                  \
-    exit(EXIT_FAILURE);                                                        \
-  }
-
 // Structs and Static Variables
 typedef struct {
   float position[3];

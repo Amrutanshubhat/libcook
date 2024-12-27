@@ -4,6 +4,13 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #undef GLFW_INCLUDE_NONE
+#include <stdlib.h>
+
+#define assert(value, ...)                                                     \
+  if (!(value)) {                                                              \
+    fprintf(stderr, "[ERROR]: " __VA_ARGS__);                                  \
+    exit(EXIT_FAILURE);                                                        \
+  }
 
 typedef struct {
   float x;
