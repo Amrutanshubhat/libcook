@@ -41,6 +41,7 @@ void CloseWindow();       // close all
 // Funtionalities can be added here
 void DrawRectangle(const Vec2 position, const Vec2 dimension, const Color color);
 void DrawLine(const Vec2 start, const Vec2 end, const Color color);
+void DrawPoint(const Vec2 position, const Color color);
 /*
  * index: how position coordinates are to be connected (using triangles ofcourse)
  * eg: 1 2 3 2 3 4 
