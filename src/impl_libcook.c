@@ -1,4 +1,3 @@
-
 /*
  * vertex and elemnt objects data are uploaded to gpu's buffer and single draw-
  		call is made at the end for each draw mode(3 currently).
@@ -14,7 +13,7 @@
 // Structs and Static Variables
 typedef struct {
   float position[3];
-  float color[4];
+  uint8_t color[4];
   float texture[2];
 } Vertex;
 
@@ -29,7 +28,9 @@ const int _color_bit = (1<<8)-1;
 unsigned int *const window_width = &_window.width;
 unsigned int *const window_height = &_window.height;
 
-enum Gl_modes { TRIANGLE_MODE, LINE_MODE, POINT_MODE, MODE_SENTINEL };
+typedef enum { 
+	TRIANGLE_MODE, LINE_MODE, POINT_MODE, MODE_SENTINEL 
+} Gl_modes;
 
 static struct _gl_mode {
   unsigned int vbo;
@@ -43,9 +44,9 @@ static struct _gl_mode {
 } _gl_mode[MODE_SENTINEL];
 
 // local helper functions
-static void append_vert_ind(const Vec3 *positions, const Color *colors,
-                            const int size, const unsigned int *indices,
-                            const int isize, enum Gl_modes mode) {
+static void append_vert_ind(const Vertex* vertices, const int size, 
+							const unsigned int *indices, const int isize, 
+							Gl_modes mode) {
 
   struct _gl_mode *ptr = &_gl_mode[mode];
 
@@ -76,17 +77,9 @@ static void append_vert_ind(const Vec3 *positions, const Color *colors,
 	  glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(temp), temp);
   }
 
-  Vertex v[size];
-  for (size_t i = 0; i < size; i++) {
-    v[i].position[0] = positions[i].x;
-    v[i].position[1] = positions[i].y;
-    v[i].position[2] = positions[i].z;
-    v[i].color[0] = colors[i].r;
-    v[i].color[1] = colors[i].g;
-    v[i].color[2] = colors[i].b;
-    v[i].color[3] = colors[i].a;
-  }
-  glBufferSubData(GL_ARRAY_BUFFER, ptr->vert_cnt*sizeof(Vertex), sizeof(v), v);
+  glBufferSubData(GL_ARRAY_BUFFER, 
+				  ptr->vert_cnt*sizeof(*vertices), 
+				  sizeof(*vertices)*size, vertices);
   // deal with index data
   unsigned int ind[isize];
   for (size_t i = 0; i < isize; i++) {
@@ -100,6 +93,42 @@ static void append_vert_ind(const Vec3 *positions, const Color *colors,
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+typedef struct {
+	GLint size;
+	GLenum type;
+	GLboolean norm;
+	GLsizei stride;
+	int off_sz;
+} Va_ptr_attrib;
+	
+static void
+intitialize_gl_mode(struct _gl_mode* ptr, Va_ptr_attrib* va_ptrs, int size, 
+						const char* vs, const char* fs) {
+
+	  //vertex array and attributes
+	  glGenVertexArrays(1, &ptr->vao);
+	  glGenBuffers(1, &ptr->vbo);
+	  glGenBuffers(1, &ptr->ebo);
+
+	  glBindVertexArray(ptr->vao);
+	  glBindBuffer(GL_ARRAY_BUFFER, ptr->vbo);
+	  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ptr->ebo);
+
+	  for (size_t i=0, offset=0; i<size; i++) {
+		  glVertexAttribPointer(i, va_ptrs[i].size, 
+				  				va_ptrs[i].type, va_ptrs[i].norm, 
+								va_ptrs[i].stride, (void *)offset);
+		  glEnableVertexAttribArray(i);
+		  offset += va_ptrs[i].size*va_ptrs[i].off_sz;
+	  }
+	  glBindBuffer(GL_ARRAY_BUFFER, 0);
+	  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	  glBindVertexArray(0);
+
+	  // shader program compilation
+	  ptr->sp = CreateShaderProgram(vs, fs);
 }
 
 static char *extract_shader_source_code(const char *filename) {
@@ -185,19 +214,17 @@ void CreateWindow(const int width, const int height, const char *title) {
   glfwMakeContextCurrent(_window.handle);
   glfwSetKeyCallback(_window.handle, key_callback);
   glfwSetFramebufferSizeCallback(_window.handle, framebuffer_size_callback);
-  glfwSwapInterval(0); // 1 to limit fps to 60
+  glfwSwapInterval(1); // 1 to limit fps to 60
 
   gladLoadGL(glfwGetProcAddress);
 
-  // Currently common shader program for all gl modes
-  const char *vertex_prog_file = "src/vertex.glsl";
-  const char *fragment_prog_file = "src/fragment.glsl";
-  unsigned int shader_program = CreateShaderProgram(vertex_prog_file, fragment_prog_file);
+  _window.width = width;
+  _window.height = height;
 
   //initialize uniform variables
   float pos_mat[] = {
-	  2.0f/width, 0, 0, -1,
-	  0, -2.0f/height, 0, 1,
+	  2.0f/_window.width, 0, 0, -1,
+	  0, -2.0f/_window.height, 0, 1,
 	  0, 0, 1, 0,
 	  0, 0, 0, 1
   };
@@ -209,49 +236,32 @@ void CreateWindow(const int width, const int height, const char *title) {
 	0, 0, 0, 1.0f/_color_bit
   };
 
-  int proj_mat_pos = glGetUniformLocation(shader_program, "proj_pos_matrix");
-  int proj_mat_clr = glGetUniformLocation(shader_program, "proj_clr_matrix");
-  glUseProgram(shader_program);
-  glUniformMatrix4fv(proj_mat_pos, 1, GL_TRUE, pos_mat);
-  glUniformMatrix4fv(proj_mat_clr, 1, GL_TRUE, clr_mat);
-  glUseProgram(0);
-
   // initialize memory for all gl_modes seperately
   for (size_t i=0; i<MODE_SENTINEL; i++) {
-
 	  struct _gl_mode* ptr = &_gl_mode[i];
-	  glGenVertexArrays(1, &ptr->vao);
-	  glGenBuffers(1, &ptr->vbo);
-	  glGenBuffers(1, &ptr->ebo);
+	  switch (i) {
+		  case TRIANGLE_MODE:
+		  case LINE_MODE:
+		  case POINT_MODE: {
+			  Va_ptr_attrib attribs[] = {
+				  {3, GL_FLOAT, GL_FALSE, sizeof(Vertex), sizeof(float)},
+				  {4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(Vertex), sizeof(uint8_t)},
+				  {2, GL_FLOAT, GL_FALSE, sizeof(Vertex), sizeof(float)}
+			  };
 
-	  glBindVertexArray(ptr->vao);
-	  glBindBuffer(GL_ARRAY_BUFFER, ptr->vbo);
-	  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ptr->ebo);
+			  intitialize_gl_mode(ptr, attribs, sizeof(attribs)/sizeof(*attribs), 
+					  "src/vertex.glsl", "src/fragment.glsl");
 
-	  // Note: Beware of these hardcoded numbers
-	  //
-	  // position
-	  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)0);
-	  glEnableVertexAttribArray(0);
-
-	  // color
-	  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-							(void *)(3 * sizeof(float)));
-	  glEnableVertexAttribArray(1);
-
-	  // texture
-	  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-							(void *)(7 * sizeof(float)));
-	  glEnableVertexAttribArray(2);
-
-	  ptr->sp = shader_program;
-	  glBindBuffer(GL_ARRAY_BUFFER, 0);
-	  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	  glBindVertexArray(0);
+			  int pm_pos = glGetUniformLocation(ptr->sp, "proj_pos_matrix");
+			  int pm_clr = glGetUniformLocation(ptr->sp, "proj_clr_matrix");
+			  glUseProgram(ptr->sp);
+			  glUniformMatrix4fv(pm_pos, 1, GL_TRUE, pos_mat);
+			  glUniformMatrix4fv(pm_clr, 1, GL_TRUE, clr_mat);
+			  glUseProgram(0);
+			  break;
+			}
+	  }
   }
-
-  _window.width = width;
-  _window.height = height;
 }
 
 unsigned int CreateShaderProgram(const char *const vertex_glsl,
@@ -282,26 +292,46 @@ unsigned int CreateShaderProgram(const char *const vertex_glsl,
 }
 
 void DrawRectangle(const Vec2 pos, const Vec2 dim, const Color col) {
-  // NOTE (Beware): few constants hence used directly
-  Vec3 v[4] = {{.x = pos.x, .y = pos.y},
-               {.x = pos.x, .y = pos.y + dim.y},
-               {.x = pos.x + dim.x, .y = pos.y + dim.y},
-               {.x = pos.x + dim.x, .y = pos.y}};
-  Color c[] = {col, col, col, col};
+  Vertex v[] = {
+	{.position={pos.x, pos.y}, .color={col.r, col.g, col.b, col.a}},	
+	{.position={pos.x, pos.y+dim.y}, .color={col.r, col.g, col.b, col.a}},	
+	{.position={pos.x+dim.x, pos.y+dim.y}, .color={col.r, col.g, col.b, col.a}},	
+	{.position={pos.x+dim.x, pos.y}, .color={col.r, col.g, col.b, col.a}}
+  };
   unsigned int idx[] = {0, 1, 2, 2, 3, 0};
-  append_vert_ind(v, c, 4, idx, 6, TRIANGLE_MODE);
+  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), TRIANGLE_MODE);
 }
 
 void DrawLine(const Vec2 start, const Vec2 end, const Color col) {
-  Vec3 v[2] = {{.x = start.x, .y = start.y}, {.x = end.x, .y = end.y}};
-  Color c[] = {col, col};
+	Vertex v[] = {
+		{.position={start.x, start.y}, .color={col.r, col.g, col.b, col.a}},
+		{.position={end.x, end.y}, .color={col.r, col.g, col.b, col.a}}
+	};
   unsigned int idx[] = {0, 1};
-  append_vert_ind(v, c, 2, idx, 2, LINE_MODE);
+  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), LINE_MODE);
+}
+
+void DrawPoint(const Vec2 pos, const Color col) {
+	Vertex v[] = {
+		{.position={pos.x, pos.y}, .color={col.r, col.g, col.b, col.a}}
+	};
+	unsigned int idx[] = {0};
+  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), POINT_MODE);
 }
 
 void DrawVertices(const Vec3 *positions, const Color *colors, const int size,
                   const unsigned int *indices, const int isize) {
-	append_vert_ind(positions, colors, size, indices, isize, TRIANGLE_MODE);
+  Vertex v[size];
+  for (size_t i=0; i<size; i++) {
+    v[i].position[0] = positions[i].x;
+    v[i].position[1] = positions[i].y;
+    v[i].position[2] = positions[i].z;
+    v[i].color[0] = colors[i].r;
+    v[i].color[1] = colors[i].g;
+    v[i].color[2] = colors[i].b;
+    v[i].color[3] = colors[i].a;
+  }
+  append_vert_ind(v, size, indices, isize, TRIANGLE_MODE);
 }
 
 inline void EndCooking() {
