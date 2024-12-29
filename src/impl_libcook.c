@@ -21,18 +21,18 @@ static struct {
   unsigned int width;
   unsigned int height;
   GLFWwindow *handle;
-} _window;
+} _Window;
 
-const int _color_bit = (1<<8)-1;
+const uint8_t _color_bit = (1<<8)-1;
 
-unsigned int *const window_width = &_window.width;
-unsigned int *const window_height = &_window.height;
+unsigned int *const window_width = &_Window.width;
+unsigned int *const window_height = &_Window.height;
 
 typedef enum { 
 	TRIANGLE_MODE, LINE_MODE, POINT_MODE, MODE_SENTINEL 
-} Gl_modes;
+} _Gl_modes;
 
-static struct _gl_mode {
+static struct _Gl_config {
   unsigned int vbo;
   unsigned int vao;
   unsigned int ebo;
@@ -41,14 +41,14 @@ static struct _gl_mode {
   size_t idx_capacity;
   size_t vert_cnt;
   size_t idx_cnt;
-} _gl_mode[MODE_SENTINEL];
+} _Gl_config[MODE_SENTINEL];
 
 // local helper functions
 static void append_vert_ind(const Vertex* vertices, const int size, 
 							const unsigned int *indices, const int isize, 
-							Gl_modes mode) {
+							_Gl_modes mode) {
 
-  struct _gl_mode *ptr = &_gl_mode[mode];
+  struct _Gl_config *ptr = &_Gl_config[mode];
 
   glBindBuffer(GL_ARRAY_BUFFER, ptr->vbo);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ptr->ebo);
@@ -104,8 +104,7 @@ typedef struct {
 } Va_ptr_attrib;
 	
 static void
-intitialize_gl_mode(struct _gl_mode* ptr, Va_ptr_attrib* va_ptrs, int size, 
-						const char* vs, const char* fs) {
+intitialize_gl_mode(struct _Gl_config* ptr, Va_ptr_attrib* va_ptrs, int size) {
 
 	  //vertex array and attributes
 	  glGenVertexArrays(1, &ptr->vao);
@@ -126,9 +125,6 @@ intitialize_gl_mode(struct _gl_mode* ptr, Va_ptr_attrib* va_ptrs, int size,
 	  glBindBuffer(GL_ARRAY_BUFFER, 0);
 	  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	  glBindVertexArray(0);
-
-	  // shader program compilation
-	  ptr->sp = CreateShaderProgram(vs, fs);
 }
 
 static char *extract_shader_source_code(const char *filename) {
@@ -173,7 +169,7 @@ void update_fps() {
     int fps = frame_cnt / elapsed;
     char title[10] = {0};
     sprintf(title, "%d", fps);
-    glfwSetWindowTitle(_window.handle, title);
+    glfwSetWindowTitle(_Window.handle, title);
     frame_cnt = 0;
   }
   frame_cnt++;
@@ -187,13 +183,13 @@ static void error_callback(int error, const char *description) {
 static void key_callback(GLFWwindow *window, int key, int scancode, int action,
                          int mods) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(_window.handle, GLFW_TRUE);
+    glfwSetWindowShouldClose(_Window.handle, GLFW_TRUE);
 }
 
 static void framebuffer_size_callback(GLFWwindow *window, int width,
                                       int height) {
-  _window.width = width;
-  _window.height = height;
+  _Window.width = width;
+  _Window.height = height;
   glViewport(0, 0, width, height);
 }
 
@@ -208,23 +204,23 @@ void CreateWindow(const int width, const int height, const char *title) {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwSetErrorCallback(error_callback);
 
-  _window.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
+  _Window.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
 
-  assert(_window.handle, "window creation failed\n");
-  glfwMakeContextCurrent(_window.handle);
-  glfwSetKeyCallback(_window.handle, key_callback);
-  glfwSetFramebufferSizeCallback(_window.handle, framebuffer_size_callback);
+  assert(_Window.handle, "window creation failed\n");
+  glfwMakeContextCurrent(_Window.handle);
+  glfwSetKeyCallback(_Window.handle, key_callback);
+  glfwSetFramebufferSizeCallback(_Window.handle, framebuffer_size_callback);
   glfwSwapInterval(1); // 1 to limit fps to 60
 
   gladLoadGL(glfwGetProcAddress);
 
-  _window.width = width;
-  _window.height = height;
+  _Window.width = width;
+  _Window.height = height;
 
   //initialize uniform variables
   float pos_mat[] = {
-	  2.0f/_window.width, 0, 0, -1,
-	  0, -2.0f/_window.height, 0, 1,
+	  2.0f/_Window.width, 0, 0, -1,
+	  0, -2.0f/_Window.height, 0, 1,
 	  0, 0, 1, 0,
 	  0, 0, 0, 1
   };
@@ -235,10 +231,14 @@ void CreateWindow(const int width, const int height, const char *title) {
 	0, 0, 1.0f/_color_bit, 0,
 	0, 0, 0, 1.0f/_color_bit
   };
-
+  /*
+   * can shift sp generation to individual modes once different shader files are 
+   * required.
+   * */
+  unsigned int sp = CreateShaderProgram("src/vertex.glsl", "src/fragment.glsl");
   // initialize memory for all gl_modes seperately
   for (size_t i=0; i<MODE_SENTINEL; i++) {
-	  struct _gl_mode* ptr = &_gl_mode[i];
+	  struct _Gl_config* ptr = &_Gl_config[i];
 	  switch (i) {
 		  case TRIANGLE_MODE:
 		  case LINE_MODE:
@@ -249,9 +249,8 @@ void CreateWindow(const int width, const int height, const char *title) {
 				  {2, GL_FLOAT, GL_FALSE, sizeof(Vertex), sizeof(float)}
 			  };
 
-			  intitialize_gl_mode(ptr, attribs, sizeof(attribs)/sizeof(*attribs), 
-					  "src/vertex.glsl", "src/fragment.glsl");
-
+			  intitialize_gl_mode(ptr, attribs, sizeof(attribs)/sizeof(*attribs));
+			  ptr->sp = sp;
 			  int pm_pos = glGetUniformLocation(ptr->sp, "proj_pos_matrix");
 			  int pm_clr = glGetUniformLocation(ptr->sp, "proj_clr_matrix");
 			  glUseProgram(ptr->sp);
@@ -262,6 +261,9 @@ void CreateWindow(const int width, const int height, const char *title) {
 			}
 	  }
   }
+  // ugly but needed for transparency to work
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 unsigned int CreateShaderProgram(const char *const vertex_glsl,
@@ -336,14 +338,12 @@ void DrawVertices(const Vec3 *positions, const Color *colors, const int size,
 
 inline void EndCooking() {
   // clear screen
-  // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
   // copy all gl modes data
-  struct _gl_mode *ptr = nullptr;
+  struct _Gl_config *ptr = nullptr;
 
   for (size_t i = 0; i < MODE_SENTINEL; i++) {
-    ptr = &_gl_mode[i];
+    ptr = &_Gl_config[i];
     if (!ptr->vert_cnt)
       continue;
 
@@ -364,26 +364,25 @@ inline void EndCooking() {
 
 	glUseProgram(ptr->sp);
 	glBindVertexArray(ptr->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, ptr->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ptr->ebo);
 
     glDrawElements(draw_mode, ptr->idx_cnt, GL_UNSIGNED_INT, nullptr);
 
 	ptr->vert_cnt = ptr->idx_cnt=0;
   }
-  glfwSwapBuffers(_window.handle);
+  glfwSwapBuffers(_Window.handle);
   glfwPollEvents();
   update_fps();
 }
 
-inline bool StartCooking() { return !glfwWindowShouldClose(_window.handle); }
+inline bool StartCooking() { return !glfwWindowShouldClose(_Window.handle); }
 
 void CloseWindow() {
-  glfwDestroyWindow(_window.handle);
+  glfwDestroyWindow(_Window.handle);
   for (size_t i = 0; i < MODE_SENTINEL; i++) {
-	  glDeleteVertexArrays(1, &_gl_mode[i].vao);
-	  glDeleteBuffers(1, &_gl_mode[i].vbo);
-	  glDeleteProgram(_gl_mode[i].sp);
+	  glDeleteVertexArrays(1, &_Gl_config[i].vao);
+	  glDeleteBuffers(1, &_Gl_config[i].vbo);
+	  glDeleteProgram(_Gl_config[i].sp);
   }
   glfwTerminate();
 }
