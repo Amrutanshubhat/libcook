@@ -104,7 +104,7 @@ typedef struct {
 } Va_ptr_attrib;
 	
 static void
-intitialize_gl_mode(struct _Gl_config* ptr, Va_ptr_attrib* va_ptrs, int size) {
+intitialize_gl_mode(struct _Gl_config* ptr, Va_ptr_attrib* va_ptrs, int size, const char* vs, const char* fs) {
 
 	  //vertex array and attributes
 	  glGenVertexArrays(1, &ptr->vao);
@@ -122,6 +122,7 @@ intitialize_gl_mode(struct _Gl_config* ptr, Va_ptr_attrib* va_ptrs, int size) {
 		  glEnableVertexAttribArray(i);
 		  offset += va_ptrs[i].size*va_ptrs[i].off_sz;
 	  }
+	  ptr->sp = CreateShaderProgram(vs, fs);
 	  glBindBuffer(GL_ARRAY_BUFFER, 0);
 	  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	  glBindVertexArray(0);
@@ -210,7 +211,7 @@ void CreateWindow(const int width, const int height, const char *title) {
   glfwMakeContextCurrent(_Window.handle);
   glfwSetKeyCallback(_Window.handle, key_callback);
   glfwSetFramebufferSizeCallback(_Window.handle, framebuffer_size_callback);
-  glfwSwapInterval(1); // 1 to limit fps to 60
+  glfwSwapInterval(1); // 1 to limit fps to display refresh rate
 
   gladLoadGL(glfwGetProcAddress);
 
@@ -231,11 +232,7 @@ void CreateWindow(const int width, const int height, const char *title) {
 	0, 0, 1.0f/_color_bit, 0,
 	0, 0, 0, 1.0f/_color_bit
   };
-  /*
-   * can shift sp generation to individual modes once different shader files are 
-   * required.
-   * */
-  unsigned int sp = CreateShaderProgram("src/vertex.glsl", "src/fragment.glsl");
+
   // initialize memory for all gl_modes seperately
   for (size_t i=0; i<MODE_SENTINEL; i++) {
 	  struct _Gl_config* ptr = &_Gl_config[i];
@@ -249,8 +246,7 @@ void CreateWindow(const int width, const int height, const char *title) {
 				  {2, GL_FLOAT, GL_FALSE, sizeof(Vertex), sizeof(float)}
 			  };
 
-			  intitialize_gl_mode(ptr, attribs, sizeof(attribs)/sizeof(*attribs));
-			  ptr->sp = sp;
+			  intitialize_gl_mode(ptr, attribs, sizeof(attribs)/sizeof(*attribs), "src/vertex.glsl", "src/fragment.glsl");
 			  int pm_pos = glGetUniformLocation(ptr->sp, "proj_pos_matrix");
 			  int pm_clr = glGetUniformLocation(ptr->sp, "proj_clr_matrix");
 			  glUseProgram(ptr->sp);
