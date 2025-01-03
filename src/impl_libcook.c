@@ -289,15 +289,20 @@ unsigned int CreateShaderProgram(const char *const vertex_glsl,
   return sp;
 }
 
-void DrawRectangle(const Vec2 pos, const Vec2 dim, const Color col) {
+void DrawRectangle(const Vec2 pos, const Vec2 dim, const Color col, const bool filled) {
   Vertex v[] = {
 	{.position={pos.x, pos.y}, .color={col.r, col.g, col.b, col.a}},	
 	{.position={pos.x, pos.y+dim.y}, .color={col.r, col.g, col.b, col.a}},	
 	{.position={pos.x+dim.x, pos.y+dim.y}, .color={col.r, col.g, col.b, col.a}},	
 	{.position={pos.x+dim.x, pos.y}, .color={col.r, col.g, col.b, col.a}}
   };
-  unsigned int idx[] = {0, 1, 2, 2, 3, 0};
-  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), TRIANGLE_MODE);
+  if (filled) {
+	  unsigned int idx[] = {0, 1, 2, 2, 3, 0};
+	  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), TRIANGLE_MODE);
+  } else {
+	  unsigned int idx[] = {0, 1, 1, 2, 2, 3, 3, 0};
+	  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), LINE_MODE);
+  }
 }
 
 void DrawLine(const Vec2 start, const Vec2 end, const Color col) {

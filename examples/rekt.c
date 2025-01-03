@@ -22,7 +22,7 @@ int main(void) {
 			.b = 190,
 			.a = 255
 		};
-		DrawRectangle(pos, rect_size, col); 	
+		DrawRectangle(pos, rect_size, col, true); 	
 		EndCooking();
 	}
 	CloseWindow();

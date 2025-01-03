@@ -39,7 +39,7 @@ extern void EndCooking(); // batch renderer
 void CloseWindow();       // close all
 
 // Funtionalities can be added here
-void DrawRectangle(const Vec2 position, const Vec2 dimension, const Color color);
+void DrawRectangle(const Vec2 position, const Vec2 dimension, const Color color, const bool filled);
 void DrawLine(const Vec2 start, const Vec2 end, const Color color);
 void DrawPoint(const Vec2 position, const Color color);
 /*
