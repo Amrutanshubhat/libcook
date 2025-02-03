@@ -1,5 +1,6 @@
 #include "libcook.h"
 #include <math.h>
+#include <stdio.h>
 
 int main(void) {
 	const int width = 800, height = 600;

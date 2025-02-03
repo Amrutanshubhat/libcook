@@ -1,9 +1,6 @@
 #ifndef _COOKER
 #define _COOKER
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#undef GLFW_INCLUDE_NONE
 #include <stdlib.h>
 
 #define assert(value, ...)                                                     \
@@ -30,13 +27,14 @@ typedef struct {
   short b;
   short a;
 } Color;
-extern unsigned int *const window_width, *const window_height;
+extern uint32_t *const window_width, *const window_height;
 extern void CreateWindow(const int width, const int height, const char *title);
-extern unsigned int CreateShaderProgram(const char *vertex_glsl,
+extern uint32_t CreateShaderProgram(const char *vertex_glsl,
                                         const char *fragment_glsl);
 extern bool StartCooking();
 extern void EndCooking(); // batch renderer
-void CloseWindow();       // close all
+extern void CloseWindow();
+extern float TimeElapsed(); // time elapsed since window created
 
 // Funtionalities can be added here
 void DrawRectangle(const Vec2 position, const Vec2 dimension, const Color color, const bool filled);
@@ -48,5 +46,5 @@ void DrawPoint(const Vec2 position, const Color color);
  * 	=> triangle 1: vertex[0] vertex[1] vertex[2],
  *		triangle 2: vertex[2] vertex[3] vertex[4]
  * */
-void DrawVertices(const Vec3* positions, const Color* colors, const int size, const unsigned int* indices, const int isize);
+void DrawVertices(const Vec3* positions, const Color* colors, const int size, const uint32_t* indices, const int isize);
 #endif

@@ -4,11 +4,19 @@
  * */
 #include <stdio.h>
 #include <stdlib.h>
-#define GLAD_GL_IMPLEMENTATION
-#include "glad/gl.h"
-#undef GLAD_GL_IMPLEMENTATION
-#include "GLFW/glfw3.h"
+#include <string.h>
+#include <time.h>
 #include "libcook.h"
+#include "platform.h"
+
+#ifdef __APPLE__
+ #define GL_SILENCE_DEPRECATION
+ #include <OpenGL/gl3.h>
+
+#else
+ assert(false, "platform layer is not implemented\n");
+
+#endif
 
 // Structs and Static Variables
 typedef struct {
@@ -18,25 +26,25 @@ typedef struct {
 } Vertex;
 
 static struct {
-  unsigned int width;
-  unsigned int height;
-  GLFWwindow *handle;
+  uint32_t width;
+  uint32_t height;
+  float dawn_time;
 } _Window;
 
 const uint8_t _color_bit = (1<<8)-1;
 
-unsigned int *const window_width = &_Window.width;
-unsigned int *const window_height = &_Window.height;
+uint32_t *const window_width = &_Window.width;
+uint32_t *const window_height = &_Window.height;
 
 typedef enum { 
 	TRIANGLE_MODE, LINE_MODE, POINT_MODE, MODE_SENTINEL 
 } _Gl_modes;
 
 static struct _Gl_config {
-  unsigned int vbo;
-  unsigned int vao;
-  unsigned int ebo;
-  unsigned int sp;
+  uint32_t vbo;
+  uint32_t vao;
+  uint32_t ebo;
+  uint32_t sp;
   size_t vert_capacity;
   size_t idx_capacity;
   size_t vert_cnt;
@@ -45,7 +53,7 @@ static struct _Gl_config {
 
 // local helper functions
 static void append_vert_ind(const Vertex* vertices, const int size, 
-							const unsigned int *indices, const int isize, 
+							const uint32_t *indices, const int isize, 
 							_Gl_modes mode) {
 
   struct _Gl_config *ptr = &_Gl_config[mode];
@@ -68,11 +76,11 @@ static void append_vert_ind(const Vertex* vertices, const int size,
   // check for elemnt buffer object
   if (ptr->idx_capacity < ptr->idx_cnt+isize) {
 	  ptr->idx_capacity = ptr->idx_cnt+isize;
-	  unsigned int temp[ptr->idx_cnt];
+	  uint32_t temp[ptr->idx_cnt];
 	  glGetBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(temp), temp);
 
 	  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
-			  sizeof(unsigned int)*ptr->idx_capacity,
+			  sizeof(uint32_t)*ptr->idx_capacity,
 			  nullptr, GL_DYNAMIC_DRAW);
 	  glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(temp), temp);
   }
@@ -81,13 +89,13 @@ static void append_vert_ind(const Vertex* vertices, const int size,
 				  ptr->vert_cnt*sizeof(*vertices), 
 				  sizeof(*vertices)*size, vertices);
   // deal with index data
-  unsigned int ind[isize];
+  uint32_t ind[isize];
   for (size_t i = 0; i < isize; i++) {
     ind[i] = ptr->vert_cnt + indices[i];
   }
 
   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 
-				  ptr->idx_cnt*sizeof(unsigned int), sizeof(ind), ind);
+				  ptr->idx_cnt*sizeof(uint32_t), sizeof(ind), ind);
   ptr->vert_cnt += size;
   ptr->idx_cnt += isize;
 
@@ -138,9 +146,9 @@ static char *extract_shader_source_code(const char *filename) {
   return src_code;
 }
 
-static unsigned int compile_shader(const char *filename, unsigned int type) {
+static uint32_t compile_shader(const char *filename, uint32_t type) {
   char *code = extract_shader_source_code(filename);
-  unsigned int id = glCreateShader(type);
+  uint32_t id = glCreateShader(type);
   const char *const _code_ptr = code;
   glShaderSource(id, 1, &_code_ptr, nullptr);
   glCompileShader(id);
@@ -163,35 +171,17 @@ static unsigned int compile_shader(const char *filename, unsigned int type) {
 void update_fps() {
   static double ps;
   static int frame_cnt;
-  double cur_sec = glfwGetTime();
+  double cur_sec = TimeElapsed();
   double elapsed = cur_sec - ps;
   if (elapsed > 1) {
     ps = cur_sec;
     int fps = frame_cnt / elapsed;
     char title[10] = {0};
     sprintf(title, "%d", fps);
-    glfwSetWindowTitle(_Window.handle, title);
+	PlatformSetWindowTitle(title);
     frame_cnt = 0;
   }
   frame_cnt++;
-}
-
-// Callbacks
-static void error_callback(int error, const char *description) {
-  fprintf(stderr, "GLFW Error: %s\n", description);
-}
-
-static void key_callback(GLFWwindow *window, int key, int scancode, int action,
-                         int mods) {
-  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(_Window.handle, GLFW_TRUE);
-}
-
-static void framebuffer_size_callback(GLFWwindow *window, int width,
-                                      int height) {
-  _Window.width = width;
-  _Window.height = height;
-  glViewport(0, 0, width, height);
 }
 
 // Function definitions
@@ -199,24 +189,11 @@ static void framebuffer_size_callback(GLFWwindow *window, int width,
  * Loads glfw and sets up opengl context and config
  * */
 void CreateWindow(const int width, const int height, const char *title) {
-  assert(glfwInit(), "Failed to initialize the window\n");
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwSetErrorCallback(error_callback);
-
-  _Window.handle = glfwCreateWindow(width, height, title, nullptr, nullptr);
-
-  assert(_Window.handle, "window creation failed\n");
-  glfwMakeContextCurrent(_Window.handle);
-  glfwSetKeyCallback(_Window.handle, key_callback);
-  glfwSetFramebufferSizeCallback(_Window.handle, framebuffer_size_callback);
-  glfwSwapInterval(1); // 1 to limit fps to display refresh rate
-
-  gladLoadGL(glfwGetProcAddress);
-
+  PlatformCreateWindow(width, height, title);
   _Window.width = width;
   _Window.height = height;
+  _Window.dawn_time = TimeElapsed();
+  PlatformSetSwapInterval(1); // 0 to go brrrr
 
   //initialize uniform variables
   float pos_mat[] = {
@@ -262,14 +239,14 @@ void CreateWindow(const int width, const int height, const char *title) {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-unsigned int CreateShaderProgram(const char *const vertex_glsl,
+uint32_t CreateShaderProgram(const char *const vertex_glsl,
                                  const char *const fragment_glsl) {
   // compiling
-  unsigned int vs = compile_shader(vertex_glsl, GL_VERTEX_SHADER);
-  unsigned int fs = compile_shader(fragment_glsl, GL_FRAGMENT_SHADER);
+  uint32_t vs = compile_shader(vertex_glsl, GL_VERTEX_SHADER);
+  uint32_t fs = compile_shader(fragment_glsl, GL_FRAGMENT_SHADER);
 
   // linking
-  unsigned int sp = glCreateProgram();
+  uint32_t sp = glCreateProgram();
   glAttachShader(sp, vs);
   glAttachShader(sp, fs);
   glLinkProgram(sp);
@@ -297,10 +274,10 @@ void DrawRectangle(const Vec2 pos, const Vec2 dim, const Color col, const bool f
 	{.position={pos.x+dim.x, pos.y}, .color={col.r, col.g, col.b, col.a}}
   };
   if (filled) {
-	  unsigned int idx[] = {0, 1, 2, 2, 3, 0};
+	  uint32_t idx[] = {0, 1, 2, 2, 3, 0};
 	  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), TRIANGLE_MODE);
   } else {
-	  unsigned int idx[] = {0, 1, 1, 2, 2, 3, 3, 0};
+	  uint32_t idx[] = {0, 1, 1, 2, 2, 3, 3, 0};
 	  append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), LINE_MODE);
   }
 }
@@ -310,7 +287,7 @@ void DrawLine(const Vec2 start, const Vec2 end, const Color col) {
 		{.position={start.x, start.y}, .color={col.r, col.g, col.b, col.a}},
 		{.position={end.x, end.y}, .color={col.r, col.g, col.b, col.a}}
 	};
-  unsigned int idx[] = {0, 1};
+  uint32_t idx[] = {0, 1};
   append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), LINE_MODE);
 }
 
@@ -318,12 +295,12 @@ void DrawPoint(const Vec2 pos, const Color col) {
 	Vertex v[] = {
 		{.position={pos.x, pos.y}, .color={col.r, col.g, col.b, col.a}}
 	};
-	unsigned int idx[] = {0};
+	uint32_t idx[] = {0};
   append_vert_ind(v, sizeof(v)/sizeof(*v), idx, sizeof(idx)/sizeof(*idx), POINT_MODE);
 }
 
 void DrawVertices(const Vec3 *positions, const Color *colors, const int size,
-                  const unsigned int *indices, const int isize) {
+                  const uint32_t *indices, const int isize) {
   Vertex v[size];
   for (size_t i=0; i<size; i++) {
     v[i].position[0] = positions[i].x;
@@ -371,19 +348,25 @@ inline void EndCooking() {
 
 	ptr->vert_cnt = ptr->idx_cnt=0;
   }
-  glfwSwapBuffers(_Window.handle);
-  glfwPollEvents();
+  PlatformPollEvents();
+  PlatformSwapBuffers();
   update_fps();
 }
 
-inline bool StartCooking() { return !glfwWindowShouldClose(_Window.handle); }
+inline bool StartCooking() { return !PlatformShouldWindowClose(); }
 
 void CloseWindow() {
-  glfwDestroyWindow(_Window.handle);
+  PlatformCloseWindow();
   for (size_t i = 0; i < MODE_SENTINEL; i++) {
 	  glDeleteVertexArrays(1, &_Gl_config[i].vao);
 	  glDeleteBuffers(1, &_Gl_config[i].vbo);
 	  glDeleteProgram(_Gl_config[i].sp);
   }
-  glfwTerminate();
+}
+
+// platform specific accurate timer implementation
+float TimeElapsed() {
+	_platform_time curtime;
+	PlatformGetCurrentTime(&curtime);
+	return (curtime.sec+(float)curtime.nsec/1e9)-_Window.dawn_time;
 }

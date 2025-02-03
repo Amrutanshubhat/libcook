@@ -1,4 +1,3 @@
-#include "glad/gl.h"
 #include "libcook.h"
 
 int main(void) {
