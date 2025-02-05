@@ -9,6 +9,7 @@
 #include "platform.h"
 
 #define objc_args_int(...) ((int(*)(__VA_ARGS__))objc_msgSend)_send_obj_msg
+#define objc_args_uint(...) ((uint32_t(*)(__VA_ARGS__))objc_msgSend)_send_obj_msg
 #define objc_args_void(...) ((void(*)(__VA_ARGS__))objc_msgSend)_send_obj_msg
 #define objc_args_id(...) ((id(*)(__VA_ARGS__))objc_msgSend)_send_obj_msg
 #define _send_obj_msg(_Id, _Sel, ...) ((id)_Id, sel_registerName(_Sel), ##__VA_ARGS__)
@@ -138,8 +139,19 @@ enum:uint32_t {
     NSOpenGLContextParameterSurfaceSurfaceVolatile  = 306, /* 1 param.   Surface volatile state */
  };
 
+enum:uint32_t {
+    NSEventModifierFlagCapsLock           = 1 << 16, // Set if Caps Lock key is pressed.
+    NSEventModifierFlagShift              = 1 << 17, // Set if Shift key is pressed.
+    NSEventModifierFlagControl            = 1 << 18, // Set if Control key is pressed.
+    NSEventModifierFlagOption             = 1 << 19, // Set if Option or Alternate key is pressed.
+    NSEventModifierFlagCommand            = 1 << 20, // Set if Command key is pressed.
+    NSEventModifierFlagNumericPad         = 1 << 21, // Set if any key in the numeric keypad is pressed.
+    NSEventModifierFlagHelp               = 1 << 22, // Set if the Help key is pressed.
+    NSEventModifierFlagFunction           = 1 << 23, // Set if any function key is pressed.
+};
+
+// unless it returns true, window won't be closed
 bool windowShouldClose(id self) {
-	fprintf(stderr, "window should close\n");
 	return true;
 }
 
@@ -175,9 +187,24 @@ void PlatformPollEvents(void) {
 						(_app, flag, SIZE_T_MAX, _event_resp_time, _event_loop_mode, true);
 	if (event != nullptr) {
 		int event_type = objc_args_int(id, SEL)(event, "type");
-		if (event_type == NSEventTypeKeyDown) {
-			fprintf(stderr, "key pressed\n");
-			objc_args_void(id, SEL, id)(_window, "performClose:", nullptr);
+
+		Keymap key_mod = (objc_args_uint(id, SEL)(event, "modifierFlags"));
+		// lower 15 bits are reserved by os
+		switch(event_type) {
+			case NSEventTypeKeyDown:
+				{
+					id str = objc_args_id(id, SEL)(event, "charactersIgnoringModifiers");
+					Keymap key_char = *((uint8_t*) objc_args_id(id, SEL)(str, "UTF8String"));
+					_key_press_callback(key_char, key_mod, true);
+					break;
+				}
+			case NSEventTypeKeyUp:
+				{
+					id str = objc_args_id(id, SEL)(event, "charactersIgnoringModifiers");
+					Keymap key_char = *((uint8_t*) objc_args_id(id, SEL)(str, "UTF8String"));
+					_key_press_callback(key_char, key_mod, true);
+					break;
+				}
 		}
 	}
 	objc_args_void(id, SEL, id)(_app, "sendEvent:", event);
@@ -188,12 +215,17 @@ inline bool PlatformShouldWindowClose(void) {
 	return !objc_args_int(id, SEL)(_window, "isVisible");
 }
 
-void PlatformCloseWindow(void) {
+inline void PlatformSetWindowClose(void) {
+	objc_args_void(id, SEL, id)(_window, "performClose:", nullptr);
+}
+
+void PlatformCleanup(void) {
 	objc_args_void(id, SEL)(_event_loop_mode, "dealloc");
 	objc_args_void(id, SEL)(_window, "dealloc");
 	objc_args_void(id, SEL)(_app, "dealloc");
 	objc_args_void(id, SEL)(_delegate, "dealloc");
 }
+
 
 void PlatformCreateWindow(const uint32_t width, const uint32_t height, const char* title) {
 	assert(_app == nullptr); // check for duplicate app

@@ -33,6 +33,7 @@ static struct {
 
 const uint8_t _color_bit = (1<<8)-1;
 
+
 uint32_t *const window_width = &_Window.width;
 uint32_t *const window_height = &_Window.height;
 
@@ -183,6 +184,14 @@ void update_fps() {
   }
   frame_cnt++;
 }
+// default callback implementation
+
+void _dummy_key_callback(Keymap k, Keymap m, bool p) {
+	if (k == KEY_ESC)
+		CloseWindow();
+}
+KeyPressCallback _key_press_callback = _dummy_key_callback;
+
 
 // Function definitions
 /*
@@ -355,8 +364,18 @@ inline void EndCooking() {
 
 inline bool StartCooking() { return !PlatformShouldWindowClose(); }
 
+void SetKeypressCallback(void (*func)(Keymap key, Keymap meta, bool is_pressed)) {
+	_key_press_callback = func;
+}
+
 void CloseWindow() {
-  PlatformCloseWindow();
+	// come out of game loop and try again
+	if (!PlatformShouldWindowClose()) {
+		PlatformSetWindowClose();
+		return;
+	}
+
+  PlatformCleanup();
   for (size_t i = 0; i < MODE_SENTINEL; i++) {
 	  glDeleteVertexArrays(1, &_Gl_config[i].vao);
 	  glDeleteBuffers(1, &_Gl_config[i].vbo);

@@ -27,7 +27,32 @@ typedef struct {
   short b;
   short a;
 } Color;
+
+// for non-modifiers take only lower 8 bits
+typedef enum:uint32_t {
+	KEY_A		= 'a',
+	KEY_S		= 's',
+	KEY_D		= 'd',
+	KEY_W		= 'w',
+	KEY_SPACE	= ' ',
+	KEY_ENTER	= '\n',
+	KEY_ESC		= 0x1b,
+	KEY_LEFT 	= 0xEF,
+	KEY_RIGHT 	= 0xEF,
+	KEY_UP	 	= 0xEF,
+	KEY_DOWN 	= 0xEF,
+
+    KEY_SHIFT   = 1 << 17,
+    KEY_CONTROL = 1 << 18,
+    KEY_OPTION  = 1 << 19,
+    KEY_COMMAND = 1 << 20,
+} Keymap;
+
+typedef void (*KeyPressCallback)(Keymap key, Keymap meta, bool is_pressed);
+extern void SetKeypressCallback(KeyPressCallback);
+
 extern uint32_t *const window_width, *const window_height;
+
 extern void CreateWindow(const int width, const int height, const char *title);
 extern uint32_t CreateShaderProgram(const char *vertex_glsl,
                                         const char *fragment_glsl);
