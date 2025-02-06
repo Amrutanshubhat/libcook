@@ -37,10 +37,6 @@ typedef enum:uint32_t {
 	KEY_SPACE	= ' ',
 	KEY_ENTER	= '\n',
 	KEY_ESC		= 0x1b,
-	KEY_LEFT 	= 0xEF,
-	KEY_RIGHT 	= 0xEF,
-	KEY_UP	 	= 0xEF,
-	KEY_DOWN 	= 0xEF,
 
     KEY_SHIFT   = 1 << 17,
     KEY_CONTROL = 1 << 18,

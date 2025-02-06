@@ -202,7 +202,7 @@ void PlatformPollEvents(void) {
 				{
 					id str = objc_args_id(id, SEL)(event, "charactersIgnoringModifiers");
 					Keymap key_char = *((uint8_t*) objc_args_id(id, SEL)(str, "UTF8String"));
-					_key_press_callback(key_char, key_mod, true);
+					_key_press_callback(key_char, key_mod, false);
 					break;
 				}
 		}
